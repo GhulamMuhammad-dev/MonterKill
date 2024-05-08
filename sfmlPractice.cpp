@@ -16,16 +16,16 @@ public:
     }
 };
 
-// Player class
+// Object class for the player
 class Object {
 public:
     sf::RectangleShape shape;
     float velocityY;
     const float gravity = 1000.0f;
-    const float jumpStrength = -600.0f;
+    const float jumpStrength = -400.0f;
     const float movementSpeed = 200.0f;
     bool isJumping;
-    int hitCount = 0; // Track number of times player is hit by monsters
+    int hitCount = 0;
 
     Object(float x, float y, float size) {
         shape.setPosition(x, y);
@@ -62,25 +62,24 @@ public:
     }
 };
 
-// Bullet class
+// Bullet class with custom sprite
 class Bullet {
 public:
-    sf::RectangleShape shape;
+    sf::Sprite sprite;
     float speed;
 
-    Bullet(float x, float y, float speed) {
-        shape.setPosition(x, y);
-        shape.setSize(sf::Vector2f(10, 5)); // Bullet shape
-        shape.setFillColor(sf::Color::White);
+    Bullet(const sf::Texture& texture, float x, float y, float speed) {
+        sprite.setTexture(texture); // Apply the texture to the sprite
+        sprite.setPosition(x, y);
         this->speed = speed;
     }
 
     void update(float dt) {
-        shape.move(speed * dt, 0); // Bullets move to the right
+        sprite.move(speed * dt, 0); // Bullets move to the right
     }
 
     bool isOutOfScreen() {
-        return shape.getPosition().x > 800; // If off-screen to the right
+        return sprite.getPosition().x > 800; // If off-screen to the right
     }
 };
 
@@ -88,10 +87,17 @@ public:
 class Gun {
 public:
     std::vector<Bullet> bullets;
-    const float bulletSpeed = 500.0f; // Speed of bullets
+    sf::Texture bulletTexture; // Texture for bullets
+    const float bulletSpeed = 500.0f;
+
+    Gun(const std::string& texturePath) {
+        if (!bulletTexture.loadFromFile(texturePath)) {
+            std::cerr << "Error loading bullet texture." << std::endl;
+        }
+    }
 
     void shoot(float x, float y) {
-        bullets.push_back(Bullet(x, y, bulletSpeed)); // Create a new bullet
+        bullets.push_back(Bullet(bulletTexture, x, y, bulletSpeed)); // Create a bullet with a custom sprite
     }
 
     void update(float dt) {
@@ -101,31 +107,9 @@ public:
                 it = bullets.erase(it); // Remove off-screen bullets
             }
             else {
-                ++it;
+                ++it; // Continue to the next bullet
             }
         }
-    }
-};
-
-// Particle class for environment effects
-class Particle {
-public:
-    sf::CircleShape shape;
-    float speed;
-
-    Particle(float x, float y, float radius, float speed) {
-        shape.setPosition(x, y);
-        shape.setRadius(radius);
-        shape.setFillColor(sf::Color::Yellow); // Yellow particles for the environment
-        this->speed = speed;
-    }
-
-    void update(float dt) {
-        shape.move(-speed * dt, 0); // Particles move leftward
-    }
-
-    bool isOutOfScreen() {
-        return shape.getPosition().x < -2 * shape.getRadius(); // If off-screen to the left
     }
 };
 
@@ -140,7 +124,7 @@ public:
     Monster(float x, float y, float size, float speed, int health, bool canBeKilled) {
         shape.setPosition(x, y);
         shape.setSize(sf::Vector2f(size, size));
-        shape.setFillColor(canBeKilled ? sf::Color::Red : sf::Color::Yellow); // Red if killable, Yellow if not
+        shape.setFillColor(canBeKilled ? sf::Color::Red : sf::Color::Yellow); // Color based on whether it can be killed
         this->speed = speed;
         this->health = health;
         this->canBeKilled = canBeKilled;
@@ -151,28 +135,29 @@ public:
     }
 
     bool isOutOfScreen() {
-        return shape.getPosition().x < -shape.getSize().x; // If off-screen to the left
+        return shape.getPosition().x < -shape.getSize().x; // If off-screen
     }
 };
 
+// Main game loop
 int main() {
-    sf::RenderWindow window(sf::VideoMode(800, 600), "Player with Gun, Monsters, and Environment Particles");
+    sf::RenderWindow window(sf::VideoMode(800, 600), "Player with Custom Bullet Sprite");
     Ground ground(0, 500, 800, 100); // Ground position and size
     Object object(100, 450, 50); // Player object
-    Gun gun; // Gun for shooting bullets
+    Gun gun("bullet_texture.png"); // Load the custom texture for bullets
     int playerScore = 0; // Player's score
 
-    std::vector<Monster> monsters;
+    std::vector<Monster> monsters; // Correct vector initialization
     std::vector<Particle> particles; // Environment particles
-    sf::Clock clock;
+
+    sf::Clock clock; // Delta time calculation
     sf::Clock monsterSpawnClock; // To track monster spawns
     sf::Clock particleSpawnClock; // To track particle spawns
 
     std::default_random_engine generator(std::time(nullptr)); // Seed for random generator
     std::uniform_real_distribution<float> speedDistribution(100.0f, 300.0f); // Monster speed distribution
     std::uniform_int_distribution<int> healthDistribution(1, 5); // Monster health distribution
-    std::uniform_int_distribution<int> spawnTimeDistribution(1, 3); // Monster spawn time
-    std::uniform_int_distribution<int> invincibilityDistribution(0, 1); // Determine if monster can be killed
+    std::uniform_int_distribution<int> spawnTimeDistribution(1, 3); // Monster spawn interval
     std::uniform_real_distribution<float> particleSpawnTime(0.1f, 0.3f); // Particle spawn interval
     std::uniform_real_distribution<float> particleSpeed(150.0f, 250.0f); // Particle speed
     std::uniform_real_distribution<float> particleY(100.0f, 400.0f); // Y-coordinate range for particles
@@ -185,7 +170,7 @@ int main() {
             }
 
             if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) { // If left mouse button is pressed
-                gun.shoot(object.shape.getPosition().x + object.shape.getSize().x, object.shape.getPosition().y + 10); // Shoot bullets
+                gun.shoot(object.shape.getPosition().x + object.shape.getSize().x, object.shape.getPosition().y + 10); // Shoot bullets with custom sprite
             }
         }
 
@@ -206,7 +191,7 @@ int main() {
         object.update(dt, ground);
 
         // Update the gun and bullets
-        gun.update(dt);
+        gun.update(dt); // Updates with correct iterator handling
 
         // Monster generation logic
         if (monsterSpawnClock.getElapsedTime().asSeconds() > spawnTimeDistribution(generator)) {
@@ -226,26 +211,26 @@ int main() {
                     std::cout << "Game over! Player hit three times by monsters." << std::endl;
                     window.close();
                 }
-                it = monsters.erase(it); // Remove monster after hitting the player
+                it = monsters.erase(it); // Correctly remove the monster
             }
             else {
                 if (it->canBeKilled) { // If monster can be killed
                     for (auto bullet = gun.bullets.begin(); bullet != gun.bullets.end();) {
-                        if (bullet->shape.getGlobalBounds().intersects(it->shape.getGlobalBounds())) {
-                            it->health--; // Reduce monster health
-                            bullet = gun.bullets.erase(bullet); // Erase bullet after hit
+                        if (bullet.sprite.getGlobalBounds().intersects(it->shape.getGlobalBounds())) {
+                            it->health--; // Decrease monster health
+                            bullet = gun.bullets.erase(bullet); // Correctly erase the bullet
                         }
                         else {
-                            ++bullet; // Continue to next bullet
+                            ++bullet; // Move to the next bullet
                         }
                     }
 
                     if (it->health <= 0) {
                         playerScore++; // Increment player's score
-                        it = monsters.erase(it); // Remove monster when killed
+                        it = monsters.erase(it); // Correctly remove the monster
                     }
                     else {
-                        ++it; // Continue to next monster
+                        ++it; // Move to the next monster
                     }
                 }
                 else { // If monster cannot be killed
@@ -253,7 +238,7 @@ int main() {
                         it = monsters.erase(it); // If off-screen, remove
                     }
                     else {
-                        ++it; // Continue to next monster
+                        ++it; // Move to the next monster
                     }
                 }
             }
@@ -268,12 +253,12 @@ int main() {
 
         // Update particles and remove if off-screen
         for (auto it = particles.begin(); it != particles.end();) {
-            it->update(dt); // Update particle
-            if (it->isOutOfScreen()) {
+            it->update(dt); // Update the particle
+            if (it.isOutOfScreen()) {
                 it = particles.erase(it); // If off-screen, remove
             }
             else {
-                ++it; // Continue to next particle
+                ++it; // Move to the next particle
             }
         }
 
@@ -285,10 +270,10 @@ int main() {
             window.draw(monster.shape); // Monsters
         }
         for (const auto& bullet : gun.bullets) {
-            window.draw(bullet.shape); // Bullets
+            window.draw(bullet.sprite); // Draw bullet with custom sprite
         }
         for (const auto& particle : particles) {
-            window.draw(particle.shape); // Environment particles
+            window.draw(particle.shape); // Draw the particles
         }
         window.display(); // Show the updated frame
     }
