@@ -4,23 +4,21 @@
 #include <iostream>
 #include <ctime>
 
-
-
-// Particle class definition
+// Particle class
 class Particle {
 public:
-    sf::CircleShape shape; // Circular shape for particles
+    sf::CircleShape shape;
     float speed;
 
     Particle(float x, float y, float radius, float speed) {
-        shape.setPosition(x, y); // Initial position
-        shape.setRadius(radius); // Radius for the circle
-        shape.setFillColor(sf::Color::Yellow); // Color of the particle
+        shape.setPosition(x, y);
+        shape.setRadius(radius);
+        shape.setFillColor(sf::Color::Yellow);
         this->speed = speed;
     }
 
     void update(float dt) {
-        shape.move(-speed * dt, 0); // Move particles to the left
+        shape.move(-speed * dt, 0); // Particles move leftward
     }
 
     bool isOutOfScreen() {
@@ -36,11 +34,11 @@ public:
     Ground(float x, float y, float width, float height) {
         shape.setPosition(x, y);
         shape.setSize(sf::Vector2f(width, height));
-        shape.setFillColor(sf::Color::Green);
+        shape.setFillColor(sf::Color::Green); // Ground color
     }
 };
 
-// Object class for the player
+// Object (Player) class
 class Object {
 public:
     sf::RectangleShape shape;
@@ -93,7 +91,7 @@ public:
     float speed;
 
     Bullet(const sf::Texture& texture, float x, float y, float speed) {
-        sprite.setTexture(texture); // Apply the texture to the sprite
+        sprite.setTexture(texture);
         sprite.setPosition(x, y);
         this->speed = speed;
     }
@@ -110,7 +108,7 @@ public:
 // Gun class for shooting bullets
 class Gun {
 public:
-    std::vector<Bullet> bullets;
+    std::vector<Bullet> bullets; // Store bullets
     sf::Texture bulletTexture; // Texture for bullets
     const float bulletSpeed = 500.0f;
 
@@ -138,13 +136,12 @@ public:
 };
 
 // Monster class
-// Monster class definition
 class Monster {
 public:
     sf::RectangleShape shape;
     int health;
     float speed;
-    bool canBeKilled; // Determines if monster can be killed by bullets
+    bool canBeKilled;
 
     Monster(float x, float y, float size, float speed, int health, bool canBeKilled) {
         shape.setPosition(x, y);
@@ -160,32 +157,33 @@ public:
     }
 
     bool isOutOfScreen() {
-        return shape.getPosition().x < -shape.getSize().x; // If off-screen to the left
+        return shape.getPosition().x < -shape.getSize().x; // If off-screen
     }
 };
 
 // Main game loop
 int main() {
-    sf::RenderWindow window(sf::VideoMode(800, 600), "Player with Custom Bullet Sprite");
+    sf::RenderWindow window(sf::VideoMode(800, 600), "Game with Monsters");
     Ground ground(0, 500, 800, 100); // Ground position and size
     Object object(100, 450, 50); // Player object
-    Gun gun("graphics/bee.png"); // Load the custom texture for bullets
+    Gun gun("graphics/bee.png"); // Load the bullet texture
     int playerScore = 0; // Player's score
 
-    std::vector<Monster> monsters; // Correct vector initialization
-    std::vector<Particle> particles; // Environment particles
-
-    sf::Clock clock; // Delta time calculation
-    sf::Clock monsterSpawnClock; // To track monster spawns
-    sf::Clock particleSpawnClock; // To track particle spawns
-
+    // Random distributions
     std::default_random_engine generator(std::time(nullptr)); // Seed for random generator
     std::uniform_real_distribution<float> speedDistribution(100.0f, 300.0f); // Monster speed distribution
     std::uniform_int_distribution<int> healthDistribution(1, 5); // Monster health distribution
-    std::uniform_int_distribution<int> spawnTimeDistribution(1, 3); // Monster spawn interval
+    std::uniform_int_distribution<int> invincibilityDistribution(0, 1); // Determines if a monster can be killed
     std::uniform_real_distribution<float> particleSpawnTime(0.1f, 0.3f); // Particle spawn interval
     std::uniform_real_distribution<float> particleSpeed(150.0f, 250.0f); // Particle speed
     std::uniform_real_distribution<float> particleY(100.0f, 400.0f); // Y-coordinate range for particles
+
+    std::vector<Monster> monsters;
+    std::vector<Particle> particles; // Environment particles
+
+    sf::Clock clock; // For delta time calculation
+    sf::Clock monsterSpawnClock; // To track monster spawns
+    sf::Clock particleSpawnClock; // To track particle spawns
 
     while (window.isOpen()) {
         sf::Event event;
@@ -212,15 +210,13 @@ int main() {
             object.jump(); // Jump
         }
 
-        // Update the object and ground
-        object.update(dt, ground);
+        object.update(dt, ground); // Update the player and ground
 
-        // Update the gun and bullets
-        gun.update(dt); // Updates with correct iterator handling
+        gun.update(dt); // Update the gun and bullets
 
         // Monster generation logic
-        if (monsterSpawnClock.getElapsedTime().asSeconds() > spawnTimeDistribution(generator)) {
-            bool canBeKilled = invincibilityDistribution(generator) == 1;
+        if (monsterSpawnClock.getElapsedTime().asSeconds() > 2.0) { // Adjusted spawn time
+            bool canBeKilled = invincibilityDistribution(generator) == 1; // Determine killability
             Monster newMonster(800, 450, 50, speedDistribution(generator), healthDistribution(generator), canBeKilled);
             monsters.push_back(newMonster); // Add the new monster
             monsterSpawnClock.restart(); // Reset the spawn clock
@@ -234,7 +230,7 @@ int main() {
                 object.hitCount++; // Increment hit count
                 if (object.hitCount >= 3) { // Game over if hit three times
                     std::cout << "Game over! Player hit three times by monsters." << std::endl;
-                    window.close();
+                    window.close(); // End game
                 }
                 it = monsters.erase(it); // Correctly remove the monster
             }
@@ -242,11 +238,11 @@ int main() {
                 if (it->canBeKilled) { // If monster can be killed
                     for (auto bullet = gun.bullets.begin(); bullet != gun.bullets.end();) {
                         if (bullet.sprite.getGlobalBounds().intersects(it->shape.getGlobalBounds())) {
-                            it->health--; // Decrease monster health
+                            it->health--; // Reduce monster health
                             bullet = gun.bullets.erase(bullet); // Correctly erase the bullet
                         }
                         else {
-                            ++bullet; // Move to the next bullet
+                            ++bullet; // Continue to the next bullet
                         }
                     }
 
@@ -255,11 +251,11 @@ int main() {
                         it = monsters.erase(it); // Correctly remove the monster
                     }
                     else {
-                        ++it; // Move to the next monster
+                        ++it; // Continue to the next monster
                     }
                 }
                 else { // If monster cannot be killed
-                    if (it->isOutOfScreen()) {
+                    if (it.isOutOfScreen()) {
                         it = monsters.erase(it); // If off-screen, remove
                     }
                     else {
@@ -271,7 +267,6 @@ int main() {
 
         // Particle generation for environment effect
         if (particleSpawnClock.getElapsedTime().asSeconds() > particleSpawnTime(generator)) {
-            // Create a new particle with a random Y-coordinate
             particles.push_back(Particle(800, particleY(generator), 5, particleSpeed(generator)));
             particleSpawnClock.restart(); // Reset the spawn clock
         }
@@ -280,10 +275,10 @@ int main() {
         for (auto it = particles.begin(); it != particles.end();) {
             it->update(dt); // Update the particle
             if (it.isOutOfScreen()) {
-                it = particles.erase(it); // If off-screen, remove
+                it = particles.erase(it); // Correctly remove off-screen particles
             }
             else {
-                ++it; // Move to the next particle
+                ++it; // Continue to the next particle
             }
         }
 
@@ -298,7 +293,7 @@ int main() {
             window.draw(bullet.sprite); // Draw bullet with custom sprite
         }
         for (const auto& particle : particles) {
-            window.draw(particle.shape); // Draw the particles
+            window.draw(particle.shape); // Environment particles
         }
         window.display(); // Show the updated frame
     }
