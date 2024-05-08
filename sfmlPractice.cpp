@@ -4,6 +4,30 @@
 #include <iostream>
 #include <ctime>
 
+
+
+// Particle class definition
+class Particle {
+public:
+    sf::CircleShape shape; // Circular shape for particles
+    float speed;
+
+    Particle(float x, float y, float radius, float speed) {
+        shape.setPosition(x, y); // Initial position
+        shape.setRadius(radius); // Radius for the circle
+        shape.setFillColor(sf::Color::Yellow); // Color of the particle
+        this->speed = speed;
+    }
+
+    void update(float dt) {
+        shape.move(-speed * dt, 0); // Move particles to the left
+    }
+
+    bool isOutOfScreen() {
+        return shape.getPosition().x < -2 * shape.getRadius(); // If off-screen to the left
+    }
+};
+
 // Ground class
 class Ground {
 public:
@@ -114,17 +138,18 @@ public:
 };
 
 // Monster class
+// Monster class definition
 class Monster {
 public:
     sf::RectangleShape shape;
     int health;
     float speed;
-    bool canBeKilled;
+    bool canBeKilled; // Determines if monster can be killed by bullets
 
     Monster(float x, float y, float size, float speed, int health, bool canBeKilled) {
         shape.setPosition(x, y);
         shape.setSize(sf::Vector2f(size, size));
-        shape.setFillColor(canBeKilled ? sf::Color::Red : sf::Color::Yellow); // Color based on whether it can be killed
+        shape.setFillColor(canBeKilled ? sf::Color::Red : sf::Color::Yellow); // Color depends on killability
         this->speed = speed;
         this->health = health;
         this->canBeKilled = canBeKilled;
@@ -135,7 +160,7 @@ public:
     }
 
     bool isOutOfScreen() {
-        return shape.getPosition().x < -shape.getSize().x; // If off-screen
+        return shape.getPosition().x < -shape.getSize().x; // If off-screen to the left
     }
 };
 
@@ -144,7 +169,7 @@ int main() {
     sf::RenderWindow window(sf::VideoMode(800, 600), "Player with Custom Bullet Sprite");
     Ground ground(0, 500, 800, 100); // Ground position and size
     Object object(100, 450, 50); // Player object
-    Gun gun("bullet_texture.png"); // Load the custom texture for bullets
+    Gun gun("graphics/bee.png"); // Load the custom texture for bullets
     int playerScore = 0; // Player's score
 
     std::vector<Monster> monsters; // Correct vector initialization
