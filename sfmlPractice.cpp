@@ -37,7 +37,7 @@ public:
     }
 
     void applyGravity(float dt) {
-        velocityY += gravity * dt;
+        velocityY += gravity * dt; // Apply gravity
     }
 
     void jump() {
@@ -48,12 +48,12 @@ public:
     }
 
     void update(float dt, const Ground& ground) {
-        applyGravity(dt);
-        shape.move(0, velocityY * dt);
+        applyGravity(dt); // Apply gravity effect
+        shape.move(0, velocityY * dt); // Apply movement
 
         if (shape.getGlobalBounds().intersects(ground.shape.getGlobalBounds())) {
             shape.setPosition(shape.getPosition().x, ground.shape.getPosition().y - shape.getSize().y);
-            velocityY = 0;
+            velocityY = 0; // Reset velocity when on the ground
             isJumping = false;
         }
     }
@@ -98,15 +98,18 @@ public:
     }
 
     void update(float dt) {
-        for (auto it = bullets.begin(); it != bullets.end();) {
-            it->update(dt); // Update bullets
-            if (it->isOutOfScreen()) {
-                it = bullets.erase(it); // Remove off-screen bullets
-            }
-            else {
-                ++it; // Move to the next bullet
-            }
-        }
+        // Use an optimized loop for bullet updates
+        bullets.erase(
+            std::remove_if(
+                bullets.begin(),
+                bullets.end(),
+                [dt](Bullet& bullet) {
+                    bullet.update(dt);
+                    return bullet.isOutOfScreen(); // Remove off-screen bullets
+                }
+            ),
+            bullets.end()
+        );
     }
 };
 
@@ -119,7 +122,7 @@ public:
     Particle(float x, float y, float radius, float speed) {
         shape.setPosition(x, y);
         shape.setRadius(radius);
-        shape.setFillColor(sf::Color::Yellow); // Yellow particles for the environment
+        shape.setFillColor(sf::Color::Yellow);
         this->speed = speed;
     }
 
@@ -143,7 +146,7 @@ public:
     Monster(float x, float y, float size, float speed, int health, bool canBeKilled) {
         shape.setPosition(x, y);
         shape.setSize(sf::Vector2f(size, size));
-        shape.setFillColor(canBeKilled ? sf::Color::Red : sf::Color::Yellow); // Color depends on killability
+        shape.setFillColor(canBeKilled ? sf::Color::Red : sf::Color::Yellow);
         this->speed = speed;
         this->health = health;
         this->canBeKilled = canBeKilled;
@@ -172,8 +175,10 @@ void resetGame(Object& object, Gun& gun, std::vector<Monster>& monsters, std::ve
     playerScore = 0; // Reset the player's score
 }
 
+// Explicit casting to avoid data loss
 std::default_random_engine generator(static_cast<unsigned int>(std::time(nullptr)));
-
+sf::Clock monsterSpawnClock;
+sf::Clock particleSpawnClock;
 // Main game loop with HUD and Game Over logic
 int main() {
     sf::RenderWindow window(sf::VideoMode(800, 600), "Game with HUD and Game Over Logic");
@@ -182,21 +187,19 @@ int main() {
     Gun gun; // Gun for shooting bullets
     int playerScore = 0; // Player's score
 
-   
+    sf::Clock gameClock; // Correctly initialize the game clock
+
     std::uniform_real_distribution<float> speedDistribution(100.0f, 300.0f); // Monster speed distribution
     std::uniform_int_distribution<int> healthDistribution(1, 5); // Monster health distribution
     std::uniform_int_distribution<int> invincibilityDistribution(0, 1); // Determine if monster can be killed
     std::uniform_int_distribution<int> spawnTimeDistribution(1, 3); // Monster spawn interval
+
     std::uniform_real_distribution<float> particleSpawnTime(0.1f, 0.3f); // Particle spawn interval
     std::uniform_real_distribution<float> particleSpeed(150.0f, 250.0f); // Particle speed
     std::uniform_real_distribution<float> particleY(100.0f, 400.0f); // Y-coordinate range for particles
 
     std::vector<Monster> monsters; // Vector of monsters
     std::vector<Particle> particles; // Environment particles
-
-    sf::Clock clock; // For delta time calculation
-    sf::Clock monsterSpawnClock; // To track monster spawns
-    sf::Clock particleSpawnClock; // To track particle spawns
 
     bool isGameOver = false; // To track game over state
 
@@ -212,7 +215,7 @@ int main() {
             }
         }
 
-        float dt = clock.restart().asSeconds(); // Delta time for consistent updates
+        float dt = gameClock.restart().asSeconds(); // Correct usage of SFML clock
 
         if (isGameOver) {
             // Game over screen logic
@@ -243,7 +246,6 @@ int main() {
             quitButton.setFillColor(sf::Color::Red);
             quitButton.setPosition(500, 350);
             sf::Text quitText("Quit", font, 20);
-            quitText.setFillColor(sf::Color::White);
             quitText.setPosition(510, 355);
 
             window.draw(playAgainButton);
@@ -251,24 +253,22 @@ int main() {
             window.draw(quitButton);
             window.draw(quitText);
 
-            // Check if user clicks "Play Again"
-            if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+            if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) { // Handle mouse click
                 auto mousePos = sf::Mouse::getPosition(window);
                 auto playButtonBounds = playAgainButton.getGlobalBounds();
                 auto quitButtonBounds = quitButton.getGlobalBounds();
 
                 if (playButtonBounds.contains(mousePos.x, mousePos.y)) {
-                    // Reset game logic
                     resetGame(object, gun, monsters, particles, playerScore); // Reset the game
-                    isGameOver = false; // No longer game over
+                    isGameOver = false; // Reset the game over state
                 }
                 else if (quitButtonBounds.contains(mousePos.x, mousePos.y)) {
                     window.close(); // Quit the game
                 }
             }
 
-            window.display();
-            continue; // Skip the rest of the loop if game over
+            window.display(); // Display the updated frame
+            continue; // Skip the rest of the loop if game is over
         }
 
         // Player input handling
@@ -283,7 +283,7 @@ int main() {
         }
 
         // Update the object and ground
-        object.update(dt, ground);
+        object.update(dt, ground); // Apply gravity and movement
 
         // Update the gun and bullets
         gun.update(dt);
@@ -305,13 +305,12 @@ int main() {
                 object.health -= 33.33f; // Decrease health accordingly
 
                 if (object.hitCount >= 3 || object.health <= 0) {
-                    isGameOver = true; // Game over if hit three times or health <= 0
+                    isGameOver = true; // Trigger game over
+                    it = monsters.erase(it); // Correctly remove the monster after collision
                 }
-
-                it = monsters.erase(it); // Correctly remove the monster after collision
             }
             else {
-                if (it->canBeKilled) { // If monster can be killed
+                if (it->canBeKilled) { // If the monster can be killed
                     for (auto bullet = gun.bullets.begin(); bullet != gun.bullets.end();) {
                         if (bullet->shape.getGlobalBounds().intersects(it->shape.getGlobalBounds())) {
                             it->health--; // Reduce monster health
@@ -322,14 +321,14 @@ int main() {
                                 it = monsters.erase(it); // Correctly remove the monster
                             }
                             else {
-                                ++bullet; // Move to the next bullet
+                                ++bullet; // Continue to the next bullet
                             }
                         }
                     }
                 }
-                else { // If monster cannot be killed
-                    if (object.checkCollision(it->shape)) { // If the player jumps over the unkillable monster
-                        playerScore += 5; // Score increases by 5
+                else { // If the monster cannot be killed
+                    if (object.checkCollision(it->shape)) {
+                        playerScore += 5; // Score increases by 5 for jumping over the unkillable monster
                     }
 
                     if (it->isOutOfScreen()) {
@@ -351,7 +350,7 @@ int main() {
         // Update particles and remove if off-screen
         for (auto it = particles.begin(); it != particles.end();) {
             it->update(dt); // Update particle
-            if (it.isOutOfScreen()) {
+            if (it->isOutOfScreen()) {
                 it = particles.erase(it); // Correctly remove off-screen particles
             }
             else {
@@ -360,7 +359,7 @@ int main() {
         }
 
         // Draw everything
-        window.clear();
+        window.clear(); // Clear the window for new frame
         window.draw(ground.shape); // Ground
         window.draw(object.shape); // Player
         for (const auto& monster : monsters) {
@@ -375,7 +374,7 @@ int main() {
 
         // Draw the score HUD
         sf::Font font;
-        if (!font.loadFromFile("path/to/font.ttf")) {
+        if (!font.loadFromFile("fonts/EvilEmpire.ttf")) {
             std::cerr << "Error loading font." << std::endl;
         }
 
@@ -396,3 +395,4 @@ int main() {
 
     return 0;
 }
+
