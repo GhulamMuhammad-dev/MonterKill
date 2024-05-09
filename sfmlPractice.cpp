@@ -258,11 +258,14 @@ int main() {
                 auto playButtonBounds = playAgainButton.getGlobalBounds();
                 auto quitButtonBounds = quitButton.getGlobalBounds();
 
-                if (playButtonBounds.contains(mousePos.x, mousePos.y)) {
+                float mouseX = static_cast<float>(mousePos.x);
+                float mouseY = static_cast<float>(mousePos.y);
+
+                if (playButtonBounds.contains(mouseX, mouseY)) {
                     resetGame(object, gun, monsters, particles, playerScore); // Reset the game
                     isGameOver = false; // Reset the game over state
                 }
-                else if (quitButtonBounds.contains(mousePos.x, mousePos.y)) {
+                else if (quitButtonBounds.contains(mouseX, mouseY)) {
                     window.close(); // Quit the game
                 }
             }
