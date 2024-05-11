@@ -22,7 +22,7 @@ public:
     sf::RectangleShape shape;
     float velocityY;
     const float gravity = 1000.0f;
-    const float jumpStrength = -400.0f;
+    const float jumpStrength = -600.0f;
     const float movementSpeed = 200.0f;
     bool isJumping;
     int hitCount = 0; // Track number of times player is hit by monsters
@@ -155,6 +155,28 @@ public:
     }
 };
 
+// Antidote class
+class Antidote {
+public:
+    sf::RectangleShape shape;
+    float speed;
+
+    Antidote(float x, float y, float speed) {
+        shape.setPosition(x, y);
+        shape.setSize(sf::Vector2f(20, 20)); // Antidote shape
+        shape.setFillColor(sf::Color::Green);
+        this->speed = speed;
+    }
+
+    void update(float dt) {
+        shape.move(-speed * dt, 0); // Antidote moves leftward
+    }
+
+    bool isOutOfScreen() {
+        return shape.getPosition().x < -shape.getSize().x; // If off-screen to the left
+    }
+};
+
 int main() {
     sf::RenderWindow window(sf::VideoMode(800, 600), "Player with Gun, Monsters, and Environment Particles");
     Ground ground(0, 500, 800, 100); // Ground position and size
@@ -164,6 +186,7 @@ int main() {
 
     std::vector<Monster> monsters;
     std::vector<Particle> particles; // Environment particles
+    std::vector<Antidote> antidotes; // Antidote vector
     sf::Clock clock;
     sf::Clock monsterSpawnClock; // To track monster spawns
     sf::Clock particleSpawnClock; // To track particle spawns
@@ -176,6 +199,18 @@ int main() {
     std::uniform_real_distribution<float> particleSpawnTime(0.1f, 0.3f); // Particle spawn interval
     std::uniform_real_distribution<float> particleSpeed(150.0f, 250.0f); // Particle speed
     std::uniform_real_distribution<float> particleY(100.0f, 400.0f); // Y-coordinate range for particles
+    std::uniform_real_distribution<float> antidoteSpawnTime(5.0f, 10.0f); // Antidote spawn interval
+
+    sf::Font font;
+    if (!font.loadFromFile("fonts/MightySouly.ttf")) {
+        std::cout << "Error loading font file" << std::endl;
+    }
+
+    sf::Text scoreText;
+    scoreText.setFont(font);
+    scoreText.setCharacterSize(24);
+    scoreText.setFillColor(sf::Color::White);
+    scoreText.setPosition(10, 10);
 
     while (window.isOpen()) {
         sf::Event event;
@@ -198,7 +233,7 @@ int main() {
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) {
             object.shape.move(object.movementSpeed * dt, 0); // Move right
         }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space)) {
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) {
             object.jump(); // Jump
         }
 
@@ -277,6 +312,31 @@ int main() {
             }
         }
 
+        // Antidote spawn logic
+        if (playerScore > 100 && antidotes.empty()) { // If player score is above 100 and no antidotes exist
+            float spawnY = particleY(generator); // Random Y-coordinate for antidote spawn
+            Antidote newAntidote(800, spawnY, 200); // Spawn antidote from the right side
+            antidotes.push_back(newAntidote); // Add antidote to vector
+        }
+
+        // Update antidotes and remove if off-screen
+        for (auto it = antidotes.begin(); it != antidotes.end();) {
+            it->update(dt); // Update antidote
+            if (object.checkCollision(it->shape)) { // Collision with player
+                std::cout << "Player wins! Caught the antidote." << std::endl;
+                window.close(); // Close the window
+            }
+            else if (it->isOutOfScreen()) {
+                it = antidotes.erase(it); // If off-screen, remove
+            }
+            else {
+                ++it; // Continue to next antidote
+            }
+        }
+
+        // Update the score text
+        scoreText.setString("Monsters killed: " + std::to_string(playerScore));
+
         // Draw everything
         window.clear();
         window.draw(ground.shape); // Ground
@@ -290,6 +350,10 @@ int main() {
         for (const auto& particle : particles) {
             window.draw(particle.shape); // Environment particles
         }
+        for (const auto& antidote : antidotes) {
+            window.draw(antidote.shape); // Antidotes
+        }
+        window.draw(scoreText); // Score text
         window.display(); // Show the updated frame
     }
 
