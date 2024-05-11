@@ -1,8 +1,10 @@
 #include <SFML/Graphics.hpp>
+#include<SFML/Audio.hpp>
 #include <vector>
 #include <random>
 #include <iostream>
 #include <ctime>
+using namespace sf;
 
 // Ground class
 class Ground {
@@ -178,6 +180,22 @@ public:
 };
 
 int main() {
+
+
+
+    SoundBuffer bulletfile;
+    bulletfile.loadFromFile("audio/gunfire.wav");
+    Sound bulletSound;
+    bulletSound.setBuffer(bulletfile);
+
+    SoundBuffer deadWalking;
+    deadWalking.loadFromFile("audio/monsterfoot.wav");
+    Sound deadWalkingSound;
+    deadWalkingSound.setBuffer(deadWalking);
+
+
+
+
     sf::RenderWindow window(sf::VideoMode(800, 600), "Player with Gun, Monsters, and Environment Particles");
     Ground ground(0, 500, 800, 100); // Ground position and size
     Object object(100, 450, 50); // Player object
@@ -213,6 +231,8 @@ int main() {
     scoreText.setPosition(10, 10);
 
     while (window.isOpen()) {
+
+
         sf::Event event;
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed) {
@@ -221,6 +241,7 @@ int main() {
 
             if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) { // If left mouse button is pressed
                 gun.shoot(object.shape.getPosition().x + object.shape.getSize().x, object.shape.getPosition().y + 10); // Shoot bullets
+                bulletSound.play();
             }
         }
 
@@ -251,6 +272,9 @@ int main() {
             monsterSpawnClock.restart(); // Reset the spawn clock
         }
 
+
+
+
         // Monster update and collision handling
         for (auto it = monsters.begin(); it != monsters.end();) {
             it->update(dt); // Update monster position
@@ -259,6 +283,8 @@ int main() {
                 object.hitCount++; // Increment hit count
                 if (object.hitCount >= 3) { // Game over if hit three times
                     std::cout << "Game over! Player hit three times by monsters." << std::endl;
+
+
                     window.close();
                 }
                 it = monsters.erase(it); // Remove monster after hitting the player
@@ -277,6 +303,7 @@ int main() {
 
                     if (it->health <= 0) {
                         playerScore++; // Increment player's score
+                        deadWalkingSound.play();
                         it = monsters.erase(it); // Remove monster when killed
                     }
                     else {
@@ -313,7 +340,7 @@ int main() {
         }
 
         // Antidote spawn logic
-        if (playerScore > 100 && antidotes.empty()) { // If player score is above 100 and no antidotes exist
+        if (playerScore > 10 && antidotes.empty()) { // If player score is above 100 and no antidotes exist
             float spawnY = particleY(generator); // Random Y-coordinate for antidote spawn
             Antidote newAntidote(800, spawnY, 200); // Spawn antidote from the right side
             antidotes.push_back(newAntidote); // Add antidote to vector
@@ -339,6 +366,7 @@ int main() {
 
         // Draw everything
         window.clear();
+
         window.draw(ground.shape); // Ground
         window.draw(object.shape); // Player
         for (const auto& monster : monsters) {
