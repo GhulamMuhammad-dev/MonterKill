@@ -324,16 +324,17 @@ int main()
             if (bullet.getBounds().intersects(player2.getGlobalBounds())) {
                 // Bullet hit player 2
                 player2BulletsHit++;
+                player2Health--;
                 bullet = bullets.back(); // Remove bullet
                 bullets.pop_back();
-            }
-        }
 
-        // Check if player 2 is killed
-        if (player2BulletsHit >= PLAYER_BULLETS_TO_KILL) {
-            // Game over, player 2 won
-            std::cout << "Game Over - Player 2 Won!" << std::endl;
-            window.close();
+                // Check if player 2 is killed
+                if (player2Health <= 0) {
+                    // Game over, player 2 lost
+                    std::cout << "Game Over - Player 2 Lost!" << std::endl;
+                    window.close();
+                }
+            }
         }
 
         // Update health bar sizes
