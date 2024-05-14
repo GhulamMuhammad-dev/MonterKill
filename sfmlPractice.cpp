@@ -3,21 +3,29 @@
 #include <cstdlib>
 #include <ctime>
 #include <vector>
+#include <cmath>
+#include <memory>
+#include <iostream>
 
 // Constants
 const int WINDOW_WIDTH = 800;
 const int WINDOW_HEIGHT = 600;
 const float GRAVITY = 1000.0f; // Pixels per second squared
 const float JUMP_VELOCITY = -500.0f; // Pixels per second
-const float MONSTER_MIN_SPEED = 100.0f; // Pixels per second
-const float MONSTER_MAX_SPEED = 300.0f; // Pixels per second
-const float SPAWN_INTERVAL = 2.0f; // Spawn interval in seconds
+const float MIN_SPAWN_INTERVAL = 1.0f; // Minimum spawn interval in seconds
+const float MAX_SPAWN_INTERVAL = 5.0f; // Maximum spawn interval in seconds
+const float MIN_MONSTER_SPEED = 100.0f; // Minimum monster speed in pixels per second
+const float MAX_MONSTER_SPEED = 300.0f; // Maximum monster speed in pixels per second
+const int SMALL_MONSTER_HEALTH = 5; // Health of small monsters
+const int NUM_SMALL_MONSTERS_FOR_GIANT = 15; // Number of small monsters before spawning giant
+const int PLAYER_HEALTH = 10; // Player health
+const int PLAYER_BULLETS_TO_KILL = 20; // Bullets to kill player
 
-class Monster {
+class Bullet {
 public:
-    Monster(float x, float y, float speed) : shape(sf::Vector2f(30, 30)), velocity(-speed, 0) {
-        shape.setPosition(x, y);
-        shape.setFillColor(sf::Color::Magenta);
+    Bullet(sf::Vector2f position) : shape(sf::Vector2f(5, 5)) {
+        shape.setPosition(position);
+        shape.setFillColor(sf::Color::Yellow);
     }
 
     void move(float deltaTime) {
@@ -34,7 +42,86 @@ public:
 
 private:
     sf::RectangleShape shape;
+    sf::Vector2f velocity = sf::Vector2f(1000.0f, 0); // Bullet speed
+};
+
+class Gun {
+public:
+    Gun(sf::Vector2f position) {
+        shape.setFillColor(sf::Color::Green);
+        shape.setSize(sf::Vector2f(20, 10));
+        shape.setOrigin(shape.getSize().x / 2, shape.getSize().y / 2);
+        shape.setPosition(position);
+    }
+
+    void setRotation(float angle) {
+        shape.setRotation(angle);
+    }
+
+    void setPosition(sf::Vector2f position) {
+        shape.setPosition(position);
+    }
+
+    sf::Vector2f getPosition() const {
+        return shape.getPosition();
+    }
+
+    sf::Vector2f getDirection() const {
+        float angleRad = shape.getRotation() * (3.1415926f / 180.0f);
+        return sf::Vector2f(std::cos(angleRad), std::sin(angleRad));
+    }
+
+    void draw(sf::RenderWindow& window) const {
+        window.draw(shape);
+    }
+
+private:
+    sf::RectangleShape shape;
+};
+
+class Monster {
+public:
+    Monster(float x, float y, float speed, int health, sf::Color color) : shape(sf::Vector2f(30, 30)), velocity(-speed, 0), health(health), color(color) {
+        shape.setPosition(x, y);
+        shape.setFillColor(color);
+    }
+
+    void move(float deltaTime) {
+        shape.move(velocity * deltaTime);
+    }
+
+    sf::FloatRect getBounds() const {
+        return shape.getGlobalBounds();
+    }
+
+    int getHealth() const {
+        return health;
+    }
+
+    void decreaseHealth(int amount) {
+        health -= amount;
+        if (health <= 0)
+            destroyed = true;
+    }
+
+    bool isDestroyed() const {
+        return destroyed;
+    }
+
+    void draw(sf::RenderWindow& window) const {
+        window.draw(shape);
+    }
+
+    const sf::RectangleShape& getShape() const {
+        return shape;
+    }
+
+protected:
+    sf::RectangleShape shape;
     sf::Vector2f velocity;
+    int health;
+    bool destroyed = false;
+    sf::Color color;
 };
 
 int main()
@@ -56,12 +143,30 @@ int main()
     player2.setFillColor(sf::Color::Red);
     player2.setPosition(WINDOW_WIDTH - 100, WINDOW_HEIGHT - ground.getSize().y - player2.getSize().y);
 
+    // Health bars for players
+    sf::RectangleShape player1HealthBar(sf::Vector2f(100, 10));
+    player1HealthBar.setFillColor(sf::Color::Green);
+    player1HealthBar.setPosition(10, 10);
+
+    sf::RectangleShape player2HealthBar(sf::Vector2f(100, 10));
+    player2HealthBar.setFillColor(sf::Color::Green);
+    player2HealthBar.setPosition(WINDOW_WIDTH - 110, 10);
+
+    // Gun attached to player 1
+    Gun gun(player1.getPosition() + sf::Vector2f(25, 25));
+
+    // Bullets fired by the gun
+    std::vector<Bullet> bullets;
+
     // AI player
-    std::vector<Monster> monsters;
+    std::vector<std::unique_ptr<Monster>> monsters;
 
     // Variables to control player movement
     bool player1Jumping = false;
     float player1Velocity = 0;
+
+    bool player2Jumping = false;
+    float player2Velocity = 0;
 
     // Random seed
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
@@ -69,6 +174,16 @@ int main()
     // Clock for delta time calculation
     sf::Clock clock;
     sf::Clock spawnTimer;
+
+    // Number of small monsters spawned
+    int numSmallMonstersSpawned = 0;
+
+    // Player health
+    int player1Health = PLAYER_HEALTH;
+    int player2Health = PLAYER_HEALTH;
+
+    // Bullets hit count for player 2
+    int player2BulletsHit = 0;
 
     // Main game loop
     while (window.isOpen())
@@ -82,13 +197,34 @@ int main()
         {
             if (event.type == sf::Event::Closed)
                 window.close();
-            // Jumping controls
+            // Jumping controls for player 1
             if (event.type == sf::Event::KeyPressed)
             {
                 if (event.key.code == sf::Keyboard::W && !player1Jumping)
                 {
                     player1Velocity = JUMP_VELOCITY;
                     player1Jumping = true;
+                }
+            }
+            // Jumping controls for player 2
+            if (event.type == sf::Event::KeyPressed)
+            {
+                if (event.key.code == sf::Keyboard::Up && !player2Jumping)
+                {
+                    player2Velocity = JUMP_VELOCITY;
+                    player2Jumping = true;
+                }
+            }
+            // Handle mouse button press
+            if (event.type == sf::Event::MouseButtonPressed)
+            {
+                if (event.mouseButton.button == sf::Mouse::Left)
+                {
+                    sf::Vector2f mousePosition = sf::Vector2f(event.mouseButton.x, event.mouseButton.y);
+                    sf::Vector2f direction = mousePosition - gun.getPosition();
+                    float angle = std::atan2(direction.y, direction.x) * (180 / 3.14159265f);
+                    gun.setRotation(angle);
+                    bullets.emplace_back(gun.getPosition());
                 }
             }
         }
@@ -106,13 +242,30 @@ int main()
             player1Velocity = 0;
         }
 
+        // Apply gravity to player 2
+        if (player2.getPosition().y + player2.getSize().y < WINDOW_HEIGHT - ground.getSize().y)
+        {
+            player2Velocity += GRAVITY * deltaTime.asSeconds();
+            player2.move(0, player2Velocity * deltaTime.asSeconds());
+        }
+        else
+        {
+            player2.setPosition(player2.getPosition().x, WINDOW_HEIGHT - ground.getSize().y - player2.getSize().y);
+            player2Jumping = false;
+            player2Velocity = 0;
+        }
+
         // AI player behavior - Spawn monsters gradually
-        if (spawnTimer.getElapsedTime().asSeconds() >= SPAWN_INTERVAL) {
+        if (spawnTimer.getElapsedTime().asSeconds() >= MIN_SPAWN_INTERVAL + static_cast<float>(rand()) / RAND_MAX * (MAX_SPAWN_INTERVAL - MIN_SPAWN_INTERVAL)) {
             // Spawn a monster in front of player 2
             float monsterX = player2.getPosition().x - 50; // Spawn 50 pixels in front of player 2
+            float monsterSpeed = MIN_MONSTER_SPEED + static_cast<float>(rand()) / RAND_MAX * (MAX_MONSTER_SPEED - MIN_MONSTER_SPEED); // Random speed between min and max
+
             float monsterY = WINDOW_HEIGHT - ground.getSize().y - 30; // Set Y position to be on the ground
-            float monsterSpeed = static_cast<float>(rand()) / RAND_MAX * (MONSTER_MAX_SPEED - MONSTER_MIN_SPEED) + MONSTER_MIN_SPEED;
-            monsters.emplace_back(monsterX, monsterY, monsterSpeed);
+            monsters.push_back(std::make_unique<Monster>(monsterX, monsterY, monsterSpeed, SMALL_MONSTER_HEALTH, sf::Color::Magenta));
+
+            // Increase the count of small monsters spawned
+            numSmallMonstersSpawned++;
 
             // Reset spawn timer
             spawnTimer.restart();
@@ -120,22 +273,86 @@ int main()
 
         // Move monsters towards player 1
         for (auto& monster : monsters) {
-            monster.move(deltaTime.asSeconds());
+            monster->move(deltaTime.asSeconds());
 
             // Collision detection with player 1
-            if (monster.getBounds().intersects(player1.getGlobalBounds())) {
-                // Handle collision
-                // For example, you can reduce player health or end the game
+            if (monster->getBounds().intersects(player1.getGlobalBounds())) {
+                // Handle collision with player 1
+                player1Health--;
+                if (player1Health <= 0) {
+                    // Game over, player 1 lost
+                    std::cout << "Game Over - Player 1 Lost!" << std::endl;
+                    window.close();
+                }
+                // Destroy the monster
+                monster->decreaseHealth(SMALL_MONSTER_HEALTH); // Decrease health by remaining health
+            }
+
+            // Collision detection with player 2
+            if (monster->getBounds().intersects(player2.getGlobalBounds())) {
+                // Handle collision with player 2
+                player2Health--;
+                if (player2Health <= 0) {
+                    // Game over, player 2 lost
+                    std::cout << "Game Over - Player 2 Lost!" << std::endl;
+                    window.close();
+                }
+                // Destroy the monster
+                monster->decreaseHealth(SMALL_MONSTER_HEALTH); // Decrease health by remaining health
+            }
+
+            // Collision detection with bullets
+            for (auto& bullet : bullets) {
+                if (monster->getBounds().intersects(bullet.getBounds())) {
+                    monster->decreaseHealth(1); // Decrease health by 1 for each hit
+                    bullet = bullets.back(); // Remove bullet
+                    bullets.pop_back();
+                }
             }
         }
+
+        // Remove destroyed monsters
+        monsters.erase(std::remove_if(monsters.begin(), monsters.end(), [](const std::unique_ptr<Monster>& m) { return m->isDestroyed(); }), monsters.end());
+
+        // Move bullets
+        for (auto& bullet : bullets) {
+            bullet.move(deltaTime.asSeconds());
+        }
+
+        // Collision detection with bullets for player 2
+        for (auto& bullet : bullets) {
+            if (bullet.getBounds().intersects(player2.getGlobalBounds())) {
+                // Bullet hit player 2
+                player2BulletsHit++;
+                bullet = bullets.back(); // Remove bullet
+                bullets.pop_back();
+            }
+        }
+
+        // Check if player 2 is killed
+        if (player2BulletsHit >= PLAYER_BULLETS_TO_KILL) {
+            // Game over, player 2 won
+            std::cout << "Game Over - Player 2 Won!" << std::endl;
+            window.close();
+        }
+
+        // Update health bar sizes
+        player1HealthBar.setSize(sf::Vector2f(player1Health * 10, 10));
+        player2HealthBar.setSize(sf::Vector2f(player2Health * 10, 10));
 
         // Rendering
         window.clear();
         window.draw(ground);
         window.draw(player1);
         window.draw(player2);
+        window.draw(player1HealthBar);
+        window.draw(player2HealthBar);
+        gun.draw(window);
+        for (const auto& bullet : bullets) {
+            bullet.draw(window);
+        }
         for (const auto& monster : monsters) {
-            monster.draw(window);
+            monster->draw(window);
         }
         window.display();
     }
