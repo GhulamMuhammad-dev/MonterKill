@@ -15,7 +15,7 @@ const float JUMP_VELOCITY = -500.0f;
 const float MIN_SPAWN_INTERVAL = 1.0f; 
 const float MAX_SPAWN_INTERVAL = 5.0f; 
 const float MIN_MONSTER_SPEED = 100.0f; 
-const float MAX_MONSTER_SPEED = 300.0f; 
+const float MAX_MONSTER_SPEED = 500.0f; 
 const int SMALL_MONSTER_HEALTH = 5; 
 const int NUM_SMALL_MONSTERS_FOR_GIANT = 15; 
 const int PLAYER_HEALTH = 10; 
@@ -42,7 +42,7 @@ public:
 
 private:
     sf::RectangleShape shape;
-    sf::Vector2f velocity = sf::Vector2f(1000.0f, 0); // Bullet speed
+    sf::Vector2f velocity = sf::Vector2f(1000.0f, 0); 
 };
 
 class Gun {
