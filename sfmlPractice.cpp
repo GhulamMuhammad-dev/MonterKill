@@ -10,16 +10,16 @@
 // Constants
 const int WINDOW_WIDTH = 800;
 const int WINDOW_HEIGHT = 600;
-const float GRAVITY = 1000.0f; // Pixels per second squared
-const float JUMP_VELOCITY = -500.0f; // Pixels per second
-const float MIN_SPAWN_INTERVAL = 1.0f; // Minimum spawn interval in seconds
-const float MAX_SPAWN_INTERVAL = 5.0f; // Maximum spawn interval in seconds
+const float GRAVITY = 1000.0f; 
+const float JUMP_VELOCITY = -500.0f; 
+const float MIN_SPAWN_INTERVAL = 1.0f; 
+const float MAX_SPAWN_INTERVAL = 5.0f; 
 const float MIN_MONSTER_SPEED = 100.0f; 
 const float MAX_MONSTER_SPEED = 300.0f; 
 const int SMALL_MONSTER_HEALTH = 5; 
-const int NUM_SMALL_MONSTERS_FOR_GIANT = 15; // Number of small monsters before spawning giant
-const int PLAYER_HEALTH = 10; // Player health
-const int PLAYER_BULLETS_TO_KILL = 20; // Bullets to kill player
+const int NUM_SMALL_MONSTERS_FOR_GIANT = 15; 
+const int PLAYER_HEALTH = 10; 
+const int PLAYER_BULLETS_TO_KILL = 20;
 
 class Bullet {
 public:
