@@ -42,7 +42,7 @@ public:
 
 private:
     sf::RectangleShape shape;
-    sf::Vector2f velocity = sf::Vector2f(1000.0f, 0); 
+    sf::Vector2f velocity = sf::Vector2f(00.0f, 0); 
 };
 
 class Gun {
@@ -126,15 +126,15 @@ protected:
 
 int main()
 {
-    // Create the window
+    
     sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "SFML Game");
 
-    // Create ground
+   
     sf::RectangleShape ground(sf::Vector2f(WINDOW_WIDTH, 50));
     ground.setFillColor(sf::Color::Green);
     ground.setPosition(0, WINDOW_HEIGHT - ground.getSize().y);
 
-    // Create players
+   
     sf::RectangleShape player1(sf::Vector2f(50, 50));
     player1.setFillColor(sf::Color::Blue);
     player1.setPosition(50, WINDOW_HEIGHT - ground.getSize().y - player1.getSize().y);
