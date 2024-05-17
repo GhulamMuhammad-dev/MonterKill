@@ -10,20 +10,20 @@
 // Constants
 const int WINDOW_WIDTH = 800;
 const int WINDOW_HEIGHT = 600;
-const float GRAVITY = 1000.0f; 
-const float JUMP_VELOCITY = -500.0f; 
-const float MIN_SPAWN_INTERVAL = 1.0f; 
-const float MAX_SPAWN_INTERVAL = 5.0f; 
-const float MIN_MONSTER_SPEED = 100.0f; 
-const float MAX_MONSTER_SPEED = 500.0f; 
-const int SMALL_MONSTER_HEALTH = 5; 
-const int NUM_SMALL_MONSTERS_FOR_GIANT = 15; 
-const int PLAYER_HEALTH = 10; 
+const float GRAVITY = 1000.0f;
+const float JUMP_VELOCITY = -500.0f;
+const float MIN_SPAWN_INTERVAL = 1.0f;
+const float MAX_SPAWN_INTERVAL = 5.0f;
+const float MIN_MONSTER_SPEED = 100.0f;
+const float MAX_MONSTER_SPEED = 500.0f;
+const int SMALL_MONSTER_HEALTH = 5;
+const int NUM_SMALL_MONSTERS_FOR_GIANT = 15;
+const int PLAYER_HEALTH = 10;
 const int PLAYER_BULLETS_TO_KILL = 20;
 
 class Bullet {
 public:
-    Bullet(sf::Vector2f position) : shape(sf::Vector2f(5, 5)) {
+    Bullet(sf::Vector2f position, sf::Vector2f velocity) : shape(sf::Vector2f(5, 5)), velocity(velocity) {
         shape.setPosition(position);
         shape.setFillColor(sf::Color::Yellow);
     }
@@ -42,7 +42,7 @@ public:
 
 private:
     sf::RectangleShape shape;
-    sf::Vector2f velocity = sf::Vector2f(00.0f, 0); 
+    sf::Vector2f velocity;
 };
 
 class Gun {
@@ -126,15 +126,12 @@ protected:
 
 int main()
 {
-    
     sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "SFML Game");
 
-   
     sf::RectangleShape ground(sf::Vector2f(WINDOW_WIDTH, 50));
     ground.setFillColor(sf::Color::Green);
     ground.setPosition(0, WINDOW_HEIGHT - ground.getSize().y);
 
-   
     sf::RectangleShape player1(sf::Vector2f(50, 50));
     player1.setFillColor(sf::Color::Blue);
     player1.setPosition(50, WINDOW_HEIGHT - ground.getSize().y - player1.getSize().y);
@@ -224,7 +221,8 @@ int main()
                     sf::Vector2f direction = mousePosition - gun.getPosition();
                     float angle = std::atan2(direction.y, direction.x) * (180 / 3.14159265f);
                     gun.setRotation(angle);
-                    bullets.emplace_back(gun.getPosition());
+                    sf::Vector2f bulletVelocity = gun.getDirection() * 300.0f; // Bullet speed
+                    bullets.emplace_back(gun.getPosition(), bulletVelocity);
                 }
             }
         }
@@ -277,6 +275,7 @@ int main()
 
             // Collision detection with player 1
             if (monster->getBounds().intersects(player1.getGlobalBounds())) {
+
                 // Handle collision with player 1
                 player1Health--;
                 if (player1Health <= 0) {
@@ -305,8 +304,9 @@ int main()
             for (auto& bullet : bullets) {
                 if (monster->getBounds().intersects(bullet.getBounds())) {
                     monster->decreaseHealth(1); // Decrease health by 1 for each hit
-                    bullet = bullets.back(); // Remove bullet
-                    bullets.pop_back();
+                    bullet = bullets.back(); // Replace current bullet with the last bullet
+                    bullets.pop_back(); // Remove last bullet
+                    break; // Break to avoid invalid iterator access
                 }
             }
         }
@@ -325,8 +325,8 @@ int main()
                 // Bullet hit player 2
                 player2BulletsHit++;
                 player2Health--;
-                bullet = bullets.back(); // Remove bullet
-                bullets.pop_back();
+                bullet = bullets.back(); // Replace current bullet with the last bullet
+                bullets.pop_back(); // Remove last bullet
 
                 // Check if player 2 is killed
                 if (player2Health <= 0) {
@@ -334,6 +334,7 @@ int main()
                     std::cout << "Game Over - Player 2 Lost!" << std::endl;
                     window.close();
                 }
+                break; // Break to avoid invalid iterator access
             }
         }
 
